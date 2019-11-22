@@ -3,7 +3,7 @@
 ini_set('error_reporting', E_ALL);
 ini_set('display_errors', 'On');
 
-include('common.php);
+include('common.php');
 include('classes/crypto.php');
 include('classes/stexapi/t1.php');
 
