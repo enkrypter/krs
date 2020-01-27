@@ -1,3 +1,1362 @@
+const Discord = require("discord.js");
+const client = new Discord.Client();
+const bot = new Discord.Client();
+
+function isAlphaNumeric(str) {
+  var code, i, len;
+  for (i = 0, len = str.length; i < len; i++) {
+      code = str.charCodeAt(i);
+      if (!(code > 47 && code < 58) && // numeric (0-9)
+          !(code > 64 && code < 91) && // upper alpha (A-Z)
+          !(code > 96 && code < 123)) { // lower alpha (a-z)
+      return false;
+      }
+  }
+  return true;
+}
+
+result = "";
+
+client.on("ready", () => {
+  console.log("AUDAXBot ready!");
+
+  setInterval(function() {
+  var request = require('request');
+  var data = '{"task" : "getlotterywinner"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        var res = body.split("|");
+        if (res[0] == "winner") {
+          var winner = "<@" + res[2] + ">";
+          var embed = new Discord.RichEmbed()
+          .setColor(0x9932CC)
+          .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+          .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+          .addField("Winning Ticket for Lottery " + res[4] + ":", res[1], true)
+          .addField("Winner:", winner, true)
+          .addField("Jackpot:", res[5], true)
+        
+          sendLotteryResult({embed});
+        }
+      }
+      else {
+        console.log("body is empty");
+      }
+    }
+  );
+    console.log("Sent");
+  }, 120000);
+
+});
+
+function sendLotteryResult(mmsg){
+  var guild = client.guilds.get('579535518233264148');
+  if(guild && guild.channels.get('603054305968128010')){
+      guild.channels.get('603054305968128010').send(mmsg);
+  }
+}
+
+function tipRankedusers(mmsg){
+
+  /*// Test
+  var guild = client.guilds.get("587041225945907202");
+  if(guild && guild.channels.get("587103014704119838")){
+      guild.channels.get("587103014704119838").send(mmsg);
+  }
+  */
+
+   //Audax prod
+  var guild = client.guilds.get("579535518233264148");
+  if(guild && guild.channels.get("600603988152287252")){
+      guild.channels.get("600603988152287252").send(mmsg);
+  }
+  
+}
+
+//================================================
+
+
+client.on("message", (message) => {
+  //=== Test Bot
+
+  if (message.content == "!testbot" && message.author.id == "339621897618587659") {
+    message.author.send("Message received - AUDAX Bot is LIVE!");
+  }
+  else if (message.content == "!botbalance" && (message.author.id == "339621897618587659" || message.author.id == "348290619120025600")) {   
+    console.log(message.content);
+    var request = require('request');
+    var data = '{"task" : "getbotbalance"}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+      form: json_obj
+    },  
+    function(error, response, body) {
+      console.log(body);
+        if (body != "") {
+          message.author.send("**Bot Balance is**:\n" + body + "AUDAX");
+        }
+        else {
+          
+        }
+      }
+    );
+  }
+
+  /*
+  else if (message.content == "!stats" && message.author.id == "339621897618587659") {
+    var allchannels = client.guilds.get("579535518233264148"); 
+    var allchannelsarray = [];
+    allchannels.channels.forEach(channel => allchannelsarray.push(channel.id));
+    var allchannelsjson = JSON.stringify(allchannelsarray);
+    console.log(allchannelsarray.length);
+    if (allchannelsarray.length > 0) {
+      var i;
+      for (i = 0; i < allchannelsarray.length; i++) {
+        //console.log(allchannelsarray[i]);
+        var m = allchannelsarray[i];
+        var allmessages = client.channels.get(m);
+        //var allmessagesjson = JSON.stringify(allmessages);
+        //console.log(allmessagesjson);
+        var allmessagesarray = [];
+        allmessages.messages.forEach(message => allmessagesarray.push(message.id));
+        var allmessagesjson = JSON.stringify(allmessages);
+        console.log(allmessagesjson);
+      }
+    }
+    //message.author.send("Message received - AUDAX Bot is LIVE!");
+  }
+  */
+
+  else if (message.content == "!cc" && message.author.id == "339621897618587659") {
+    var q = message.author.id;
+    var y = "<@" + message.author.id + ">";
+    var embed = new Discord.RichEmbed()
+    .setColor(0x9932CC)
+    //.setDescription("Discord AUDAX Balance for <@" + message.author.id + ">:")
+    .setThumbnail("https://audaxproject.io/img/adxlogo1.png")
+    .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+    .addField("DISCORD AUDAX BALANCE FOR:", y, true)    
+    .addBlankField(true)
+    .addField("Current Balance:", y, true);
+  
+    message.author.send({embed});
+  }
+
+  //=== direct chat with bot
+
+  else if (message.content.startsWith("!help") || message.content == "!help <@586798272920682506>" || message.content.toLowerCase() == "what can you do <@586798272920682506>" || message.content.toLowerCase() == "what can you do, <@586798272920682506>" || message.content.toLowerCase() == "what can you do <@586798272920682506>?" || message.content.toLowerCase() == "what can you do, <@586798272920682506>?" || message.content.toLowerCase() == "<@586798272920682506> what can you do" || message.content.toLowerCase() == "<@586798272920682506>, what can you do" || message.content.toLowerCase() == "<@586798272920682506> what can you do?" || message.content.toLowerCase() == "<@586798272920682506>, what can you do?" || message.content.toLowerCase() == "what else can you do <@586798272920682506>" || message.content.toLowerCase() == "what else can you do, <@586798272920682506>" || message.content.toLowerCase() == "what can else you do <@586798272920682506>?" || message.content.toLowerCase() == "what else can you do, <@586798272920682506>?" || message.content.toLowerCase() == "<@586798272920682506> what else can you do" || message.content.toLowerCase() == "<@586798272920682506>, what else can you do" || message.content.toLowerCase() == "<@586798272920682506> what else can you do?" || message.content.toLowerCase() == "<@586798272920682506>, what else can you do?" || message.content.toLowerCase() == "<@586798272920682506> help" || message.content.toLowerCase() == "help <@586798272920682506>" || message.content.toLowerCase() == "what else can you do, <@586798272920682506> ?" || message.content.toLowerCase() == "what else can you do <@586798272920682506> ?" || message.content.toLowerCase() == "what can you do, <@586798272920682506> ?" || message.content.toLowerCase() == "what can you do <@586798272920682506> ?") {    
+    var msg = "";
+    //msg = msg + "**!help** - this help menu\n\n";
+    msg = msg + "**!price** - get current AUDAX price\n";
+    msg = msg + "**!market** - get current AUDAX market stats\n";
+    msg = msg + "**!stakingroi [amount]** - estimated staking returns for specified amount\n";  
+    msg = msg + "**!block** - get blockchain/network statistics\n";
+    msg = msg + "**!revenue** - displays estimated monthly Audax revenue\n";
+    msg = msg + "**!proposals** - get proposals\n\n";
+    msg = msg + "**[TipBot Commands]**\n\n";
+    msg = msg + "**!address** - get AUDAX tip address.\n";
+    msg = msg + "**!balance** - get AUDAX tip address balance.\n";
+    msg = msg + "**!tip [@user] [amount]** - tip specified user with specified amount.\n";
+    msg = msg + "**!tiprank [rank] [amount]** - tip specified rank users with specified amount.\n";
+    msg = msg + "**!withdraw [amount] [address]** - withdraw [amount] funds from your address to specified [address]. TX fee of 0.0002 AUDAX is deducted.\n";
+    msg = msg + "**!withdraw all [address]** - withdraw all funds to specified AUDAX [address]. TX fee of 0.0002 AUDAX is deducted.\n\n";   
+    msg = msg + "**!lotteryhelp** - Lottery help menu\n";
+    /*
+    msg = msg + "**Masternode**\n\n";
+    msg = msg + "!revenue - displays estimated monthly Masternode revenue\n\n";
+    msg = msg + "!waitperiod - displays average wait times for Masternode payments\n\n";
+    msg = msg + "**Hi-Lo Game Commands** - (A win gives you 2x your bet. A loss means you lose your initial bet)\n\n";
+    msg = msg + "!lo [bet] - bet that a new randomly generated number will be lower than the previously generated number\n\n";
+    msg = msg + "!hi [bet] - bet that a new randomly generated number will be higher than the previously generated number\n\n";
+    */
+
+    //msg = msg + "!dice help - displays commands for playing the Dice game\n\n";
+    //msg = msg + "!raincheck - displays the current amount in the 'raincloud'\n\n";
+    //msg = msg + "!raintip <amount> - contribute to the 'raincloud' - funds in the raincloud are disbursed when the set threshold is reached or exceeded, to all contributors, equally. Disbursement takes places a few minutes after the threshold is reached or exceeded, because of required confirmations\n\n";
+    //msg = msg + "!tipall <amount> - tips all online users - tip is divided equally amongst online users\n\n";    
+    //msg = msg + "!mynodestats <address> - displays real-time statistics for the specified masternode address\n\n";
+    //msg = msg + "```";
+    //message.channel.send(msg);
+
+    var embed = new Discord.RichEmbed()
+      .setColor(0x9932CC)
+      .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+      .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+      .addField("AudaxBot Help:", msg, true);
+
+      message.channel.send({embed});
+  }
+
+  else if (message.content === "!lotteryhelp") {
+    var msg = "";
+    msg = msg + "**Lottery Guide - Please play Responsibly**\n\n";
+    msg = msg + "- Ticket price: 2 AUDAX. You must have at least 2.0002 AUDAX in your tip address.  Includes blockchain tx fee\n";
+    msg = msg + "- Lottery draw occurs automatically every 4,320 blocks (3 days).\n";
+    msg = msg + "- For the draw, each ticket (hash) is automatically compared with the blockhash of the draw block (e.g. block 50,000). The winning ticket is the ticket whose Levenshtein distance to the draw block hash is closest.\n(The Levenshtein distance is defined as the minimal number of characters you have to replace, insert or delete to transform a string into another). More information on the Levenshtein distance here:\n<https://en.wikipedia.org/wiki/Levenshtein_distance>\n\n";
+    msg = msg + "**!lotteryhelp** - this help menu\n";
+    msg = msg + "**!ticket** - purchase a lottery ticket - the TX hash of the purchase is your ticket\n";
+    msg = msg + "**!jackpot** - get current lottery jackpot\n";
+   
+    var embed = new Discord.RichEmbed()
+      .setColor(0x9932CC)
+      .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+      .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+      .addField("AudaxBot Help:", msg, true);
+
+      message.channel.send({embed});
+  }
+
+  else if ((message.content.toLowerCase().lastIndexOf("hello") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("hi") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("whats up") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("what's up") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("hey") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("sup") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)) {
+    
+    console.log(message.content);
+    var request = require('request');
+    var data = '{"task" : "greeting", "userid" :' + message.author.id + '}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+      form: json_obj
+    },  
+    function(error, response, body) {
+      console.log(body);
+        if (body != "") {
+          msg = body.replace("uid", "<@" + message.author.id + ">");
+          message.channel.send(msg);
+        }
+        else {
+          
+        }
+      }
+    );
+  }
+
+  else if (message.content.toLowerCase() == "thanks <@586798272920682506>" || message.content.toLowerCase() == "thanks, <@586798272920682506>" || message.content.toLowerCase() == "thank you <@586798272920682506>" || message.content.toLowerCase() == "thank you, <@586798272920682506>" || message.content.toLowerCase() == "<@586798272920682506> thanks" || message.content.toLowerCase() == "<@586798272920682506>, thanks" || message.content.toLowerCase() == "<@586798272920682506> thank you" || message.content.toLowerCase() == "<@586798272920682506>, thank you") {
+    
+    console.log(message.content);
+    
+    var request = require('request');
+    var data = '{"task" : "thanks", "userid" :' + message.author.id + '}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+      form: json_obj
+    },  
+    function(error, response, body) {
+      console.log("body is: " + body);
+        if (body != "") {
+          msg = body.replace("uid", "<@" + message.author.id + ">");
+          message.channel.send(msg);
+        }
+        else {
+          
+        }
+      }
+    );    
+  }
+
+  else if ((message.content.toLowerCase().lastIndexOf("goodbye") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("bye") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("byebye") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("see you later") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)) {
+    
+    console.log(message.content);
+    var request = require('request');
+    var data = '{"task" : "goodbye", "userid" :' + message.author.id + '}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+      form: json_obj
+    },  
+    function(error, response, body) {
+      console.log(body);
+        if (body != "") {
+          msg = body.replace("uid", "<@" + message.author.id + ">");
+          message.channel.send(msg);
+        }
+        else {
+          
+        }
+      }
+    );
+  }
+
+  else if ((message.content.toLowerCase().lastIndexOf("goodnight") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("good night") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)) {
+    
+    console.log(message.content);
+    var request = require('request');
+    var data = '{"task" : "goodnight", "userid" :' + message.author.id + '}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+      form: json_obj
+    },  
+    function(error, response, body) {
+      console.log(body);
+        if (body != "") {
+          msg = body.replace("uid", "<@" + message.author.id + ">");
+          message.channel.send(msg);
+        }
+        else {
+          
+        }
+      }
+    );
+  }
+
+  else if ((message.content.toLowerCase().lastIndexOf("good day") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("good evening") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("good morning") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("good afternoon") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)) {
+    
+    console.log(message.content);
+    var request = require('request');
+    var data = '{"task" : "timegreeting", "userid" :' + message.author.id + '}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+      form: json_obj
+    },  
+    function(error, response, body) {
+      console.log(body);
+        if (body != "") {
+          msg = body.replace("uid", "<@" + message.author.id + ">");
+          message.channel.send(msg);
+        }
+        else {
+          
+        }
+      }
+    );
+  }
+
+  else if ((message.content.toLowerCase().lastIndexOf("how are you") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1 )) {
+    
+    console.log(message.content);
+    var request = require('request');
+    var data = '{"task" : "botstatus", "userid" :' + message.author.id + '}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+      form: json_obj
+    },  
+    function(error, response, body) {
+      console.log(body);
+        if (body != "") {
+          msg = body.replace("uid", "<@" + message.author.id + ">");
+          message.channel.send(msg);
+        }
+        else {
+          
+        }
+      }
+    );
+}
+
+else if ((message.content.toLowerCase().lastIndexOf("i love you") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1 )) {
+    
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "loveyou", "userid" :' + message.author.id + '}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = body.replace("uid", "<@" + message.author.id + ">");
+        message.channel.send(msg);
+      }
+      else {
+        
+      }
+    }
+  );
+}
+
+else if (message.content.toLowerCase().lastIndexOf("tell me") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1 && (message.content.toLowerCase().lastIndexOf("market") > -1 || message.content.toLowerCase().lastIndexOf("volume") > -1 || message.content.toLowerCase().lastIndexOf("price") > -1)) {
+    
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "market", "userid" :' + message.author.id + '}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = body.replace("uid", "<@" + message.author.id + ">");
+        message.channel.send(msg);
+      }
+      else {
+        
+      }
+    }
+  );
+}
+
+else if ((message.content.toLowerCase().lastIndexOf("market") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("price") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("audax doing") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)) {
+    
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "market", "userid" :' + message.author.id + '}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = body.replace("uid", "<@" + message.author.id + ">");
+        message.channel.send(msg);
+      }
+      else {
+        
+      }
+    }
+  );
+}
+
+else if ((message.content.toLowerCase().lastIndexOf("when moon") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("when lambo") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1) || (message.content.toLowerCase().lastIndexOf("when maserati") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)  || (message.content.toLowerCase().lastIndexOf("when flippening") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)) {
+    
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "moon", "userid" : ' + message.author.id + ', "username" : "' + message.author.username + '"}';
+  console.log(data);
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = body.replace("uid", "<@" + message.author.id + ">");
+        message.channel.send(msg);
+      }
+      else {
+        
+      }
+    }
+  );
+}
+
+else if ((message.content.toLowerCase().lastIndexOf("are you from") > -1 && message.content.toLowerCase().lastIndexOf("<@586798272920682506>") > -1)  && message.content.toLowerCase() != "yo") {    
+  console.log(message.content);
+  var chat_txt = message.content;
+  var request = require('request');
+  var data = '{"task" : "origin", "userid" :' + message.author.id + ', "chat_txt" : "' + chat_txt + '"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = body.replace("uid", "<@" + message.author.id + ">");
+        message.channel.send(msg);
+      }
+      else {
+        
+      }
+    }
+  );
+}
+
+// ======= Blockchain stats
+
+else if (message.content === "!revenue") { 
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "getrevenue"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = "```Estimated Monthly Revenue:\n" + body + "```";
+        //message.channel.send(msg);
+
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("Estimated Monthly AUDAX Revenue:", body, true)
+        .addField("Note:", "Above are estimates only, calculated using an initial input of 150,000 AUDAX", true);
+
+        message.channel.send({embed});
+      }
+      else {
+        //message.channel.send("mm");
+      }
+    }
+  );
+}
+
+else if (message.content === "!block") {
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "getblockstats"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = "```AUDAX BLOCKCHAIN STATS\n======================\n" + body + "```";
+        //message.channel.send(msg);
+
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("AUDAX Blockchain Stats:", body, true);
+
+        message.channel.send({embed});
+      }
+      else {
+        //message.channel.send("mm");
+      }
+    }
+  );
+}
+
+else if (message.content === "!proposals") {
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "getproposals"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        msg = "```" + body + "```";
+        //message.channel.send(msg);
+
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("AUDAX Proposals:", body, true);
+
+        message.channel.send({embed});
+      }
+      else {
+        //message.channel.send("mm");
+      }
+    }
+  );
+}
+
+// ===============  tipbot commands  ==================
+
+else if (message.content === "!address") { //disabled
+  var request = require('request');
+  var data = '{"task" : "getaddress", "userid" : "' + message.author.id + '", "username" : "' + message.author.username + '"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+    form: json_obj
+  }, function(error, response, body){
+    var mm = message.channel.name;
+    console.log(mm);
+    console.log(body);
+    var isDM = 0;
+    if (message.channel.name == "" || message.channel.name == "undefined" || message.channel.name == null) {
+      isDM = 1;
+    }
+    console.log("isdm is: " + isDM);
+    if (body != "") {
+      var y = "<@" + message.author.id + ">";
+      var addr = body;
+      var embed = new Discord.RichEmbed()
+      .setColor(0x9932CC)
+      .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+      .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+      .addField("DISCORD AUDAX ADDRESS FOR:", y, true)    
+      .addBlankField(true)
+      .addField("Address:", addr, true);
+      
+      message.author.send({embed});
+
+      var pmsg = "Response sent via DM";
+      if (isDM == 0) {
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("DISCORD ADDRESS REQUEST FOR:", y, true)    
+        .addBlankField(true)
+        .addField("Current Balance:", pmsg, true);
+
+        message.channel.send({embed});
+      }
+    }
+    else {
+      msg = body + " Oops! Sorry, I am unable to generate or retrieve an address for you at this time";
+      message.author.send(msg);
+    }
+    //message.author.send(msg);
+  });
+}
+
+else if (message.content === "!balance") { //disabled
+  var request = require('request');
+  var data = '{"task" : "getbalance", "userid" : "' + message.author.id + '", "username" : "' + message.author.username + '"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+    form: json_obj
+  }, function(error, response, body){
+    console.log(body);
+    var isDM = 0;
+    if (message.channel.name == "" || message.channel.name == "undefined" || message.channel.name == null) {
+      isDM = 1;
+    }
+    if (body != "") {
+      if (body.indexOf("no address") > -1) {
+        msg = "<@" + message.author.id + ">, you do not currently have an AUDAX Tip address. Send me the !address command and I will automagically generate one for you!";
+        message.author.send(msg);
+      }
+      else {
+        var y = "<@" + message.author.id + ">";
+        var bal = body + " AUDAX";
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("DISCORD AUDAX BALANCE FOR:", y, true)    
+        .addBlankField(true)
+        .addField("Current Balance:", bal, true);
+      
+        message.author.send({embed});
+
+        var pmsg = "Response sent via DM";
+        if (isDM == 0) {
+          var embed = new Discord.RichEmbed()
+          .setColor(0x9932CC)
+          .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+          .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+          .addField("DISCORD BALANCE REQUEST FOR:", y, true)    
+          .addBlankField(true)
+          .addField("Current Balance:", pmsg, true);
+
+          message.channel.send({embed});
+        }
+      }        
+    }
+    else {
+      msg = "Sorry <@" + message.author.id + ">, I am unable to check your balance at this time";
+      message.author.send(msg);
+    }
+    //message.author.send(msg);
+  });
+}
+
+else if (message.content.startsWith("!tip ")) { 
+  var request = require('request');
+  var tipee = message.content.split(" ");
+  var recipient = tipee[1];
+  console.log("recipient1 is: " + recipient);
+  var amount = tipee[2];
+  var rgx = /^[0-9]*\.?[0-9]*$/;
+  if (recipient == "undefined" || recipient == null || recipient == "") {
+     message.author.send("Invalid tip command. Syntax is: !tip [@user] [amount]");
+     console.log("invalid tip command - recipient");
+  }
+  else if (amount == "undefined" || amount == null || amount == "") {
+     message.author.send("Invalid tip command. Syntax is: !tip [@user] [amount]");
+     console.log("invalid tip command - amount");
+  }
+  else if (!amount.match(rgx)) {
+    message.author.send("Invalid amount - please type a valid amount. Syntax is: !tip [@user] [amount]");
+    console.log("invalid tip command - amount");
+  }
+  else {
+    recipient = recipient.substr(2);
+    recipient = recipient.substring(0, recipient.length - 1);
+    if (recipient == "586798272920682506") {
+      message.channel.send("Thanks! But much as I would love to own some AUDAX of my own, I am not allowed to :anguished: . Thanks anyway!");
+    }
+    else if (recipient == message.author.id) {
+      message.author.send("Invalid tip command - you cannot tip yourself");
+      console.log("invalid tip command - self-tipping");
+    }
+    else {
+      if (recipient != "" && amount != "") {
+        recipient = recipient.split("!")[1];
+        recipient = recipient.split(">")[0];
+        console.log("recipient2 is: " + recipient);
+        //var recipientname = client.users.get(recipient).username;
+        var recipientname = client.fetchUser(recipient).username;
+        console.log(recipientname);
+        var data = '{"task" : "sendtip", "userid" : "' + message.author.id + '", "username" : "' + message.author.username + '", "recipient": "' + recipient + '", "amount": "' + amount + '", "recipientname" : "' + recipientname + '"}';
+        var json_obj = JSON.parse(data);
+        request.post({
+          headers: {'content-type': 'application/json'},
+          url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+          form: json_obj
+        }, function(error, response, body){
+          console.log(body);
+
+          if (body != "") {
+            var res = body.split("|");
+            var msg;
+            if (body == "Success") {
+              msg = "<@" + message.author.id + "> tipped <@" + recipient + "> " + amount + " AUDAX";
+               //message.channel.send(msg);
+               console.log("good");
+
+               var y = "<@" + message.author.id + ">";
+               var embed = new Discord.RichEmbed()
+               .setColor(0x9932CC)
+               .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+               .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+               .addField("Tip Successful!", y + " tipped <@" + recipient + "> " + amount + " AUDAX", true);  
+               //.addBlankField(true)
+               //.addField("Current Balance:", bal, true);
+             
+               message.channel.send({embed});
+
+
+            }
+            else if (res[0] == "Error") {
+              if (res[1].indexOf("Insufficient") > -1) {
+                msg = "Oops! <@" + message.author.id + ">, looks like your tip account has insufficient funds - unable to send tip";
+              }
+              else if (res[1].indexOf("Unable to send funds at this time") > -1) {
+                msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrongxxx. Unable to send tip  - please try again later";
+              }
+              else if (res[1].indexOf("Recipient does not have an account") > -1) {
+                msg = "<@" + message.author.id + ">, the user you want to tip does not have a tip account - please let them know to use the !address command to create one first";
+              }
+              else if (res[1].indexOf("Unable to get Tipper address") > -1) {
+                msg = "Oops! <@" + message.author.id + ">, you do not currently have an AUDAX Tip address. Send me the !address command and I will automagically generate one for you!";
+              }
+              else {
+                msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrong.yyy Unable to send tip  - please try again later";
+              }
+              message.author.send(msg);
+            }
+            else {
+              msg = res[0] + "Oops! <@" + message.author.id + ">, something seems to have gone wrongzzz. Unable to send tip  - please try again later";
+              message.author.send(msg);
+            }
+          }
+        });
+      }
+    }
+  } 
+}
+
+else if (message.content.startsWith("xxx!tipall")) { //disabled
+  var params = message.content.split(" ");
+  var amount = params[1];
+  console.log(amount);
+  var rgx = /^[0-9]*\.?[0-9]*$/;
+  if (amount == "undefined" || amount == null || amount == "") {
+    message.author.send("Invalid amount - please type a valid amount. Syntax is: !tipall [amount]");
+    console.log("tipall - invalid amount");
+  }
+  else if (!amount.match(rgx)) {
+    message.author.send("Invalid amount - please type a valid amount. Syntax is: !tipall [amount]");
+    console.log("tipall - invalid amount");
+  }
+  else {  
+    var allusers = client.guilds.get("579535518233264148"); 
+    var allusersarray = [];
+    allusers.members.forEach(member => allusersarray.push(member.user.id + "|" + member.user.username + "|" + member.presence.status));
+    var allusersjson = JSON.stringify(allusersarray);
+    console.log(allusersjson);
+    var request = require('request');
+    var data = '{"task" : "sendtipmany", "userid" : "' + message.author.id + '", "username" : "' + message.author.username + '", "usersarray" : "' + allusersarray + '", "amount" : "' + amount + '"}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+      form: json_obj
+    }, function(error, response, body) {
+      console.log(body);
+      if (body != "") {
+        var res = body.split("|");
+        var msg;
+        if (res[0] == "Success") {
+          var rec = body.split("---");
+          console.log(rec[1]);
+          var onlineusers = rec[1].split(",");
+          var c;
+          var tipees = "\n";
+          for (c = 0; c < onlineusers.length; c++) {
+            var row = onlineusers[c].split("|");
+            //msg = "<@" + message.author.id + "> tipped <@" + row[0] + "> " + rec[2] + " AUDAX";
+            msg = "<@" + row[0] + "> " + rec[2] + " AUDAX";
+            tipees = tipees + msg + "\n";
+            //message.channel.send(msg);
+          }
+
+          var y = "<@" + message.author.id + ">";
+          var embed = new Discord.RichEmbed()
+          .setColor(0x9932CC)
+          .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+          .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+          .addField("Tip Successful!", y + " tipped the following: " + tipees, true);    
+          message.channel.send({embed});
+        }
+        else if (res[0] == "Error") {
+          console.log(res[1]);
+          if (res[1].indexOf("Insufficient") > -1) {
+            msg = "Oops! <@" + message.author.id + ">, looks like your tip account has insufficient funds - I am unable to send this tip";
+          }
+          else if (res[1].indexOf("Unable to send funds at this time") > -1) {
+            msg = "Hi <@" + message.author.id + ">, something seems to have gone wrong. I am unable to send tip  - please try again later";
+          }
+          else if (res[1].indexOf("Recipient does not have an account") > -1) {
+            msg = "<@" + message.author.id + ">, the user you want to tip does not have a tip account - please let them know to use the !address command to create one first";
+          }
+          else if (res[1].indexOf("Unable to get Tipper address") > -1 || res[1].indexOf("Tipper has no address") > -1) {
+            msg = "Hey <@" + message.author.id + ">, you do not currently have a AUDAX Tip address. Send me the !address command and I will automagically generate one for you!";
+          }
+          else if (res[1].indexOf("Nobody online") > -1) {
+            msg = "Hey <@" + message.author.id + ">, there's currently nobody else online, so no tip was sent.";
+          }
+          else {
+            msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrong. I am unable to send this tip  - please try again later";
+          }
+          message.author.send(msg);
+        }
+      }
+      else {
+        msg = "Hey <@" + message.author.id + ">, something seems to have gone wrong. Unable to send tip  - please try again later";
+        message.author.send(msg);
+      }
+    });
+  }
+}
+
+else if (message.content.startsWith("!withdraw")) { //disabled . === ENSURE TO CHANGE VALIDATION FOR FiRST LETTER ('Q' TO 'A', ETC)
+  var request = require('request');
+  var params = message.content.split(" ");
+  amount = params[1];
+  var address = params[2];
+  var rgx = /^[0-9]*\.?[0-9]*$/;
+  if (amount == "undefined" || amount == null || amount == "") {
+    message.author.send("Invalid amount - please type a valid amount. Syntax is: !withdraw [amount] [address]. You may also use the word 'all' instead of an amount, to withdraw all your funds less transaction fee e.g. !withdraw all [address]x");
+    console.log("invalid amount " + amount);
+  }
+  else if (!amount.match(rgx) && amount != "all") {
+    message.author.send("Invalid amount - please type a valid amount. Syntax is: !withdraw [amount] [address]. You may also use the word 'all' instead of an amount, to withdraw all your funds less transaction fee e.g. !withdraw all [address]y");
+    console.log("invalid amount " + amount);
+  }
+  else if (address == "undefined" || address == null || address == "") {
+     message.author.send("Invalid address - please type a valid AUDAX address. Syntax is: !withdraw [amount] [address]. You may also use the word 'all' instead of an amount, to withdraw all your funds less transaction fee e.g. !withdraw all [address]");
+     console.log("invalid address");
+  } 
+  else if (address[0] !== "A".toUpperCase() || address == "" || address.length != 34 || !isAlphaNumeric(address)) {
+     message.author.send("Invalid address - please type a valid AUDAX address. Syntax is: !withdraw [amount] [address]. You may also use the word 'all' instead of an amount, to withdraw all your funds less transaction fee e.g. !withdraw all [address]");
+     console.log("invalid address");
+  }
+  else {
+    console.log("good amount");
+    var data = '{"task" : "withdraw", "userid" : "' + message.author.id + '", "username" : "' + message.author.username + '", "amount": "' + amount + '", "address": "' + address + '"}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+      form: json_obj
+    }, function(error, response, body){
+      console.log(body);
+      var isDM = 0;
+      if (message.channel.name == "" || message.channel.name == "undefined" || message.channel.name == null) {
+        isDM = 1;
+      }
+      if (body != "") {
+        var res = body.split("|");
+        var msg;
+        if (res[0] == "Success") {
+          msg = "<@" + message.author.id + ">, you have successfully withdrawn from your AUDAX tip account. Check transaction at: https://explorer.audaxproject.io/tx/" + res[1] + "\nYou may need to wait 1-2 minutes to see this transaction on the blockchain.";
+
+          var y = "<@" + message.author.id + ">";
+          var embed = new Discord.RichEmbed()
+          .setColor(0x9932CC)
+          .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+          .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+          .addField("Withdrawal Successful!", y + " you have successfully withdrawn " + amount + " AUDAX from your AUDAX tip account. Check transaction at: https://explorer.audaxproject.io/tx/" + res[1] + "\nYou may need to wait 1-2 minutes to see this transaction on the blockchain", true);
+
+          message.author.send({embed});
+
+          var pmsg = "Response sent via DM";
+          if (isDM == 0) {
+            var embed = new Discord.RichEmbed()
+            .setColor(0x9932CC)
+            .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+            .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+            .addField("WITHRAWAL REQUEST FOR:", y, true)    
+            .addBlankField(true)
+            .addField("Status:", pmsg, true);
+
+            message.channel.send({embed});
+          }
+
+        }
+        else if (res[0] == "Error") {
+          if (res[1].indexOf("insufficient") > -1) {
+            msg = "Hi <@" + message.author.id + ">, looks like your tip account has insufficient funds - unable to withdraw";
+          }
+          else if (res[1].indexOf("dust") > -1) {
+             msg = "Hey <@" + message.author.id + ">, Your tip account has little or no funds to withdraw. You must have more than the estimated tx fee to withdraw.";
+          }
+          else if (res[1].indexOf("User has no address") > -1) {
+            msg = "Hello <@" + message.author.id + ">, you do not currently have an AUDAX Tip address. Send me the !address command and I will automagically generate one for you!";
+          }
+          else if (res[1].indexOf("bot balance threshold") > -1) {
+            msg = "Hello <@" + message.author.id + ">, the bot balance is not sufficient to carry out this withdrawal. Don't worry, your funds are safe - just contact <@339621897618587659> so that they add funds to the bot balance.";
+          }
+          else {
+             msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrong. Unable to withdraw  - please try again later";
+          }
+          message.author.send(msg);
+        }
+        else {
+          msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrong. Unable to withdraw  - please try again later";
+          message.author.send(msg);
+        }
+        //message.author.send(msg);
+      }
+    });
+  }
+}
+
+// ==== Price
+
+else if (message.content === "!price") {
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "getprice"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        //msg = "```Current AUDAX price is:\n" + body + " BTC```";
+        msg = "```Current AUDAX price is:\n" + body + "```";
+        //message.channel.send(msg);
+
+        var y = "<@" + message.author.id + ">";
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("Current AUDAX Price:", body, true)
+        .addBlankField(true)
+        .addField("Source:", "coingecko.com", true);
+
+        message.channel.send({embed});
+      }
+      else {
+        //message.channel.send("mm");
+      }
+    }
+  );
+}
+
+else if (message.content === "!market") {
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "marketdata"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        //message.channel.send(body.replace("uid", "<@" + message.author.id + ">"));
+
+        var y = body.replace("uid", "<@" + message.author.id + ">");
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("Current AUDAX Market Stats:", y, true);
+
+        message.channel.send({embed});
+      }
+      else {
+        //message.channel.send("mm");
+      }
+    }
+  );
+}
+
+else if (message.content.startsWith("!stakingroi")) {
+  var request = require('request');
+  var query = message.content.split(" ");
+  var amount = query[1];
+  console.log(amount);
+  var rgx = /^[0-9]*\.?[0-9]*$/;
+  if (amount == "undefined" || amount == null || amount == "") {
+     message.channel.send("Invalid command. Syntax is: !stakingroi [amount]");
+     console.log("invalid command - amount");
+  }
+  else if (!amount.match(rgx)) {
+    message.channel.send("Invalid amount - please type a valid amount. Syntax is: !stakingroi [amount]");
+    console.log("invalid command - amount");
+  }
+  else {  
+    var data = '{"task" : "getstakingroi", "posStake" : "' + amount + '"}';
+    var json_obj = JSON.parse(data);
+    request.post({
+      headers: {'content-type': 'application/json'},
+      url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+      form: json_obj
+    }, function(error, response, body) {
+      console.log(body);
+
+      if (body != "") {
+        var res = body.split("|");
+        var msg;
+        if (res[0] == "Error") {
+          msg = "Invalid command. Syntax is: !stakingroi [amount]";
+          message.channel.send(msg);
+        }
+        else {
+          var y = "<@" + message.author.id + ">";
+          var embed = new Discord.RichEmbed()
+            .setColor(0x9932CC)
+            .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+            .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+            .addField("Current **ESTIMATED** Staking ROI on " + amount + " AUDAX", body, true);               
+          
+          message.channel.send({embed});
+        }
+      }
+    });
+  }
+}
+
+else if (message.content === "!ticket") { //disabled . === ENSURE TO CHANGE VALIDATION FOR FiRST LETTER ('Q' TO 'A', ETC)
+  var request = require('request');
+  var data = '{"task" : "lotteryticket", "userid" : "' + message.author.id + '", "username" : "' + message.author.username + '"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+    form: json_obj
+  }, function(error, response, body){
+    console.log(body);    
+    if (body != "") {
+      var res = body.split("|");
+      var msg;
+      if (res[0] == "Success") {
+        var y = "<@" + message.author.id + ">";
+        var embed = new Discord.RichEmbed()
+          .setColor(0x9932CC)
+          .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+          .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+          .addField("Lottery Ticket Purchase Successful!", y + " you have successfully purchased a lottery ticket.\n**Your ticket:** " + res[1] + "\n**Next Draw:** Block " + res[2], true);
+        message.channel.send({embed});       
+      }
+      else if (res[0] == "Error") {
+        if (res[1].indexOf("insufficient") > -1) {
+          msg = "Hi <@" + message.author.id + ">, looks like your tip account has insufficient funds - unable to purchase lottery ticket";
+        }
+        else if (res[1].indexOf("dust") > -1) {
+            msg = "Hey <@" + message.author.id + ">, Your tip account has little or no funds to purchase a lottery ticket.";
+        }
+        else if (res[1].indexOf("User has no address") > -1) {
+          msg = "Hello <@" + message.author.id + ">, you do not currently have an AUDAX Tip address which you need to purchase a lottery ticket. Send me the !address command and I will automagically generate one for you!";
+        }          
+        else {
+          msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrong. Unable to purchase lottery ticket  - please try again later";
+        }
+        message.author.send(msg);
+      }
+      else {
+        msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrong. Unable to purchase lottery ticket  - please try again later";
+        message.author.send(msg);
+      }        
+    }
+  });
+}
+
+else if (message.content === "!jackpot") {
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "getjackpot"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {
+        var res = body.split("|");
+        var jackpot = res[0];
+        var block = res[1];
+        var y = "<@" + message.author.id + ">";
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("Current Lottery Jackpot:", "**Jackpot:** " + jackpot + " AUDAX\n**Next Draw:** Block " + block, true)
+        .addBlankField(true);
+
+        message.channel.send({embed});
+      }
+      else {
+        message.channel.send("Sorry - unable to retrieve current jackpot");
+      }
+    }
+  );
+}
+
+else if (message.content === "!boldshare") {
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "boldsharestats"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {        
+        console.log(body);
+        var resobj = JSON.parse(body);
+        //message.channel.send(resobj['availableshares']);
+        
+        var y = "<@" + message.author.id + ">";
+
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://boldshare.io/img/logo-bshare1-161x161.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("Current BoldShare.io Stats:", "**Allocated Shares:** " + resobj['allocatedshares'] + "\n**Available Shares:** " + resobj['availableshares'] + "\n**Total MNs Shared:** " + resobj['totalmns'] + "\n**Total Rewards Paid Out:** " + resobj['totalmnpayments'] + " AUDAX\n**Next Scheduled Withdrawal:** " + resobj['nextwithdrawaldate'] + " (UTC)", true)
+        .addBlankField(true);
+
+        message.channel.send({embed});
+      
+      }
+      else {
+        message.channel.send("Sorry - unable to retrieve Boldshare Stats at this time.");
+      }
+    }
+  );
+}
+
+
+else if (message.content === "!myboldshare") {
+  console.log(message.content);
+  var request = require('request');
+  var data = '{"task" : "myboldsharestats", "userid" : "' + message.author.id + '"}';
+  var json_obj = JSON.parse(data);
+  request.post({
+    headers: {'content-type': 'application/json'},
+    url: 'https://util.audaxproject.io/audaxbot/audaxbot.php',
+    form: json_obj
+  },  
+  function(error, response, body) {
+    console.log(body);
+      if (body != "") {        
+        console.log(body);
+        var resobj = JSON.parse(body);
+        //message.channel.send(resobj['availableshares']);
+        
+        var y = "<@" + message.author.id + ">";
+
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://boldshare.io/img/logo-bshare1-161x161.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed") 
+        .addField("YOUR CURRENT BOLDSHARE STATS:", "**Shares:** " + resobj['shares'] + "\n**Balance:** " + resobj['balance'] + " AUDAX\n**Last MN Payment Amount Date:** " + resobj['lastmnpaymentdate'] + "\n**Last MN Payment Amount:** " + resobj['lastmnpayment'] + " AUDAX\n**Last Login Attempt:** " + resobj['lastlogin'] + "\n**Last Login Status:** " + resobj['lastloginstatus'] + "\n**Last Login Location:** " + resobj['lastloginlocation'], true)
+        .addBlankField(true);
+
+        message.channel.send({embed});
+
+        var pmsg = "Sent via DM";
+        var embed = new Discord.RichEmbed()
+        .setColor(0x9932CC)
+        .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+        .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+        .addField("BOLDSHARE STATS FOR:", y, true)    
+        .addBlankField(true)
+        .addField("Response:", pmsg, true);
+
+        message.channel.send({embed});
+      
+      }
+      else {
+        message.channel.send("Sorry - unable to retrieve Boldshare Stats at this time.");
+      }
+    }
+  );
+}
+
+else if (message.content.startsWith("!tiprank")) {
+  var params = message.content.split(" ");
+  var rank = params[1];
+  var amount = params[2];
+  //var rgx = /^[1-9]*\.?[1-9]*$/;
+  var rgx = /^[0-9]+$/;
+  if (rank == "undefined" || rank == null || rank == "") {
+    message.author.send("Invalid rank - please type a valid rank. Ranks must be 1-10. Syntax is: !tiprank [rank] [amount]");
+    console.log("tiprank - invalid rank");
+  }
+  else if (!rank.match(rgx) || rank < 1|| rank > 10) {
+    message.author.send("Invalid rank - please type a valid rank. Ranks must be 1-10. Syntax is: !tiprank [rank] [amount]");
+    console.log("tiprank - invalid rank");
+  }
+  else if (amount == "undefined" || amount == null || amount == "") {
+    message.author.send("Invalid amount1 - please type a valid amount. Syntax is: !tiprank [rank] [amount]");
+    console.log("tiprank - invalid amount");
+  }
+  else if (!amount.match(rgx)) {
+    message.author.send("Invalid amount2 - please type a valid amount. Syntax is: !tiprank [rank] [amount]");
+    console.log("tiprank - invalid amount");
+  }
+  else {
+    var mranks = "{\"1\": \"640384421727436802\",\"2\": \"640385134440480778\",\"3\": \"640385529166168110\",\"4\": \"640385855290343445\",\"5\": \"640386063222964234\",\"6\": \"640387611243970575\",\"7\": \"642880290951266309\",\"8\": \"640387960755191811\",\"9\": \"640388270420656129\",\"10\": \"640388498309906464\"}"; // use this
+
+    //var mranks = "{\"1\": \"642899517460578344\",\"2\": \"642900170941661184\"}"; //remove this
+    var rank_obj = JSON.parse(mranks);
+
+    let roleID = rank_obj[rank];
+    var allusers = client.guilds.get("579535518233264148"); //use this
+    //var allusers = client.guilds.get("587041225945907202"); //remove this
+    var allusersarray = [];
+
+    allusers.members.forEach(
+    member => {
+        //if (member.roles.has(roleID) && member.user.id != message.author.id) {
+        if (member.roles.has(roleID) && member.user.id != message.author.id && member.presence.status == "online") {
+          allusersarray.push(member.user.id + "|" + member.user.username);
+        }        
+      }
+    );
+
+    if (allusersarray.length == 0) {
+      console.log("No users met criteria onf online and rank " + rank);
+      msg = "Hi <@" + message.author.id + ">, there are currently no Rank " + rank + " users online to tip.";
+      var y = "<@" + message.author.id + ">";
+      var embed = new Discord.RichEmbed()
+      .setColor(0x9932CC)
+      .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+      .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+      .addField("Rank Tip:", "No Rank " + rank + " users currently online to tip", true);    
+      message.channel.send({embed});
+    }
+
+    if (allusersarray.length > 0) {
+      var request = require('request');
+      var data = '{"task" : "tiprank", "userid" : "' + message.author.id + '", "username" : "' + message.author.username + '", "usersarray" : "' + allusersarray + '", "amount" : "' + amount + '"}';
+      var json_obj = JSON.parse(data);
+      request.post({
+        headers: {'content-type': 'application/json'},
+        url: 'https://util.audaxproject.io/audaxbot/tipbot.php',
+        form: json_obj
+      }, function(error, response, body) {
+        console.log(body);        
+        if (body != "") {
+          var res = body.split("|");
+          var msg;
+          if (res[0] == "Success") {
+            console.log(res[1]);
+            var onlineusers = res[1].split("--");
+            var c;
+            var tipees = "\n";
+            var eachamount = res[2];
+            eachamount = parseFloat(eachamount).toFixed(8);
+            for (c = 0; c < onlineusers.length; c++) {
+              var row = onlineusers[c];
+              msg = "<@" + row + ">";
+              tipees = tipees + msg + "\n";
+            }
+            
+            var y = "<@" + message.author.id + ">";
+            var embed = new Discord.RichEmbed()
+            .setColor(0x9932CC)
+            .setThumbnail("https://audaxproject.io/img/audax-logo-full-white-254x99.png")
+            .setURL("https://discord.js.org/#/docs/main/indev/class/RichEmbed")    
+            .addField("Rank Tip Successful!", y + " tipped the following online **Rank " + rank + "** users " + eachamount + " AUDAX each:\n " + tipees, true);    
+            message.channel.send({embed});
+          }
+          else if (res[0] == "Error") {
+            console.log(res[1]);
+            if (res[1].indexOf("Insufficient") > -1) {
+              msg = "Oops! <@" + message.author.id + ">, looks like your tip account has insufficient funds - I am unable to send this tip";
+            }
+            else if (res[1].indexOf("Unable to send funds at this time") > -1) {
+              msg = "Hi <@" + message.author.id + ">, something seems to have gone wrong. I am unable to send tip  - please try again later";
+            }
+            else if (res[1].indexOf("Recipient does not have an account") > -1) {
+              msg = "<@" + message.author.id + ">, the user you want to tip does not have a tip account - please let them know to use the !address command to create one first";
+            }
+            else if (res[1].indexOf("Unable to get Tipper address") > -1 || res[1].indexOf("Tipper has no address") > -1) {
+              msg = "Hey <@" + message.author.id + ">, you do not currently have a AUDAX Tip address. Send me the !address command and I will automagically generate one for you!";
+            }
+            else if (res[1].indexOf("Nobody online") > -1) {
+              msg = "Hey <@" + message.author.id + ">, there's currently nobody else online, so no tip was sent.";
+            }
+            else {
+              msg = "Oops! <@" + message.author.id + ">, something seems to have gone wrong. I am unable to send this tip  - please try again later";
+            }
+            message.author.send(msg);
+          }
+        }
+        else {
+          msg = "Hey <@" + message.author.id + ">, something seems to have gone wrong. Unable to send tip  - please try again later";
+          message.author.send(msg);
+        }
+     }
+      );
+      }
+      else { //tell tipper there is no one online to tip
+
+      }
+  }
+}
+
 else if (message.content.startsWith("!rain")) {
   var params = message.content.split(" ");
   var amount = params[1];
@@ -103,3 +1462,11 @@ else if (message.content.startsWith("!rain")) {
       }
   }
 }
+
+
+
+
+
+});
+
+client.login("");
