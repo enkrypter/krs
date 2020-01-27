@@ -1,0 +1,905 @@
+<?php
+/*
+ini_set('display_startup_errors',1);
+ini_set('display_errors',1);
+error_reporting(-1);
+*/
+
+//== includes
+require_once __DIR__ . '/../php/jsonRPCClient.php';
+require_once __DIR__ . '/../php/common.php';
+require_once __DIR__ . '/../php/Client.php';
+
+// == variables
+$txfee = 0.0002;
+//$rainlimit = 100;
+$gameusername = "gameaccount";
+$gameuserid = "gameaccount";
+$gameaddress = "AbBxQyGqmWvcNj1LHkHwnDTUM62rxYsqM6";
+$lotteryaddress = "AT84Rjdmxk8mFNDk4dZDesyk1ZbAwLND8D";
+$hi_loMax = 100000;
+$hi_loMedian = $hi_loMax / 2;
+$upperlimit = $hi_loMax - 50;
+$lotteryticketamt = 2;
+$lotteryinterval = 4320;
+
+$task = $_POST['task'];
+$userid = $_POST['userid'];
+$username = $_POST['username'];
+$recipientid = $_POST['recipient'];
+$amount = $_POST['amount'];
+$wdaddress = $_POST['address'];
+$usersarray = $_POST['usersarray'];
+$recipientname = $_POST['recipientname'];
+
+$prediction = $_POST['prediction'];
+$stake = $_POST['stake'];
+$chances = $_POST['chances'];
+$ticketamount = $_POST['ticketamount'];
+
+// == functions
+
+function cryptoformat($amt) {
+  return sprintf("%.8f", $amt);
+ }
+
+ function genKey() {
+   return sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
+ }
+
+function hasAddress($id,$conn) {
+  $stmt =  $conn->prepare("SELECT * FROM discord_users WHERE userid = ?");
+  $stmt->bind_param("s", $id);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $user = $result->fetch_assoc();
+  $stmt->close();
+  
+  if ($result->num_rows > 0) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+function getAddress($id,$conn) {
+  $address = "";
+  $stmt =  $conn->prepare("SELECT * FROM discord_users WHERE userid = ?");
+  $stmt->bind_param("s", $id);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $user = $result->fetch_assoc();
+  $stmt->close();
+  
+  if ($result->num_rows > 0) {
+    $address = $user['address'];
+  }
+  return $address;
+}
+
+function createAddress($id,$username,$clnt,$conn) {
+  $address = "error";
+  $account =  genKey();
+  $address = $clnt->getnewaddress($account);
+  $date = date("n/j/Y g:i a");
+  $stmt = $conn->prepare("INSERT INTO discord_users (`startdate`, `userid`, `username`, `address`, `account`) VALUES (?, ?, ?, ?, ?)");
+  $stmt->bind_param("sssss", $date, $id, $username, $address, $account);
+  $stmt->execute();
+  $numrows = $stmt->affected_rows;
+  $err = $stmt->error;
+  $stmt->close();    
+  return $address;
+}
+
+function getAccount($id,$conn) {
+  $account = "";
+  $stmt =  $conn->prepare("SELECT * FROM discord_users WHERE userid = ?");
+  $stmt->bind_param("s", $id);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $user = $result->fetch_assoc();
+  $stmt->close();
+  
+  if ($result->num_rows > 0) {
+    $account = $user['account'];
+  }
+  return $account;
+}
+
+function getBalance($userid,$conn) {
+  if ($userid != "") {      
+    $stmt =  $conn->prepare("SELECT * FROM discord_users WHERE userid = ?");
+    $stmt->bind_param("s", $userid);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $err = $stmt->error;
+    $stmt->close();
+    
+   if ($result->num_rows > 0) {
+     $balance = $user['balance'];
+   }
+   return $balance;
+  }
+}
+
+function getJackpot($block,$conn) {
+  $stmt =  $conn->prepare("SELECT sum(amount) as jackpot FROM discord_lottery WHERE lotteryblock = ?");
+  $stmt->bind_param("i", $block);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $res = $result->fetch_assoc();
+  $err = $stmt->error;
+  $stmt->close();
+
+  $jackpot = 0;
+
+  if ($result->num_rows > 0) {
+    $jackpot = $res['jackpot'] * 0.75;
+  }
+  else {
+    $jackpot = 0;
+  }
+  return $jackpot;
+}
+
+function logTip($fromid, $fromusername, $toid, $tousername, $desc, $amount, $conn) {
+  if (empty($fromid) || empty($fromusername) || empty($toid) || empty($tousername) || empty($desc) || empty($amount)) {
+    return false;
+  }
+  else {
+    $res = false;
+    $date = date("n/j/Y g:i a");
+    $stmt = $conn->prepare("INSERT INTO discord_tips (`date`, `sourceid`, `sourceusername`, `recipientid`, `recipientusername`, `action`, `amount`) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssssss", $date, $fromid, $fromusername, $toid, $tousername, $desc, $amount);
+    $stmt->execute();
+    $numrows = $stmt->affected_rows;
+    $err = $stmt->error;
+    $stmt->close();
+    if ($numrows > 0) {
+      $res = true;        
+    }
+  }
+  return $res;   
+}
+
+function logWithdrawal($userid, $username, $fromaddress, $toaddress, $amount, $txhash, $conn) {
+  if (empty($userid) || empty($username) || empty($amount)) {
+    return false;
+  }
+  else {
+    $res = false;
+    $date = date("n/j/Y g:i a");
+    $stmt = $conn->prepare("INSERT INTO withdrawals (`date`, `userid`, `username`, `fromaddress`, `toaddress`, `amount`, `txhash`) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssssss", $date, $userid, $username, $fromaddress, $toaddress, $amount, $txhash);
+    $stmt->execute();
+    $numrows = $stmt->affected_rows;
+    $err = $stmt->error;
+    $stmt->close();
+    if ($numrows > 0) {
+      $res = true;        
+    }
+  }
+  return $res;   
+}
+
+function logLotteryEntry($userid, $username, $txhash, $amount, $block, $conn) {
+  if (empty($userid) || empty($username) || empty($txhash)) {
+    return false;
+  }
+  else {
+    $res = false;
+    $date = date("n/j/Y g:i a");
+    $stmt = $conn->prepare("INSERT INTO discord_lottery (`date`, `userid`, `username`, `lotteryhash`, `lotteryblock`, `amount`) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssis", $date, $userid, $username, $txhash, $block, $amount);
+    $stmt->execute();
+    $numrows = $stmt->affected_rows;
+    $err = $stmt->error;
+    $stmt->close();
+    if ($numrows > 0) {
+      $res = true;        
+    }
+  }
+  return $res;   
+}
+
+function deductFunds($userid, $amount, $conn) {
+  if (empty($userid) || empty($amount)) {
+    return false;
+  }
+  else {
+    $res = false;
+    $stmt =  $conn->prepare("SELECT * FROM discord_users WHERE userid = ?");
+    $stmt->bind_param("s", $userid);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $err = $stmt->error;
+    $stmt->close();
+    
+    if ($result->num_rows > 0) {
+      $balance = $user['balance'];
+      $newbalance = $balance - $amount;
+      $stmt = $conn->prepare("UPDATE discord_users set balance = ? where userid = ?");
+      $stmt->bind_param("ss", $newbalance, $userid);
+      $stmt->execute();
+      $numrows = $stmt->affected_rows;
+      $err = $stmt->error;
+      $stmt->close();
+
+      if ($numrows > 0) {
+        $res = true;
+      }
+    }
+  }
+  return $res;
+}
+
+function addFunds($userid, $amount, $conn) {
+  if (empty($userid) || empty($amount)) {
+    return false;
+  }
+  else {
+    $res = false;
+    $stmt =  $conn->prepare("SELECT * FROM discord_users WHERE userid = ?");
+    $stmt->bind_param("s", $userid);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $err = $stmt->error;
+    $stmt->close();
+    
+    if ($result->num_rows > 0) {
+      $balance = $user['balance'];
+      $newbalance = $balance + $amount;
+      $stmt = $conn->prepare("UPDATE discord_users set balance = ? where userid = ?");
+      $stmt->bind_param("ss", $newbalance, $userid);
+      $stmt->execute();
+      $numrows = $stmt->affected_rows;
+      $err = $stmt->error;
+      $stmt->close();
+
+      if ($numrows > 0) {
+        $res = true;
+      }
+    }
+  }
+  return $res;
+}
+
+function botBalance($clnt) {
+  return $balance = $clnt->getbalance();  
+}
+
+function currentHiLo($max, $conn) {
+  $stmt =  $conn->prepare("SELECT * FROM botconfig");
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $data = $result->fetch_assoc();
+  $err = $stmt->error;
+  $stmt->close();
+  
+  $currentNumber = 0;
+  if ($result->num_rows > 0) {
+    $currentNumber = $data['current_hi_lo'];
+  }
+
+  if ($currentNumber == 0) {
+    $currentNumber = mt_rand(1, $max);
+    $stmt = $conn->prepare("UPDATE botconfig set current_hi_lo = ?");
+    $stmt->bind_param("i", $currentNumber);
+    $stmt->execute();
+    $numrows = $stmt->affected_rows;
+    $err = $stmt->error;
+    $stmt->close();
+  }
+  return $currentNumber;
+}
+
+function updateHiLo($throw, $conn) {
+  $stmt = $conn->prepare("UPDATE botconfig set current_hi_lo = ?");
+  $stmt->bind_param("i", $throw);
+  $stmt->execute();
+  $numrows = $stmt->affected_rows;
+  $err = $stmt->error;
+  $stmt->close();
+}
+
+function updateNextlotteryblock($block, $conn) {
+  $stmt = $conn->prepare("UPDATE botconfig set nextlotteryblock = ?");
+  $stmt->bind_param("i", $block);
+  $stmt->execute();
+  $numrows = $stmt->affected_rows;
+  $err = $stmt->error;
+  $stmt->close();
+}
+
+function getNextlotteryblock($conn) {
+  $stmt =  $conn->prepare("SELECT nextlotteryblock FROM botconfig");
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $res = $result->fetch_assoc();
+  $stmt->close();
+  
+  if ($result->num_rows > 0) {
+    $nextlotteryblock = $res['nextlotteryblock'];
+  }
+  return $nextlotteryblock;
+}
+
+function getlotterywinner($lotteryblock,$clnt,$conn) {
+  $height = $clnt->getinfo()['blocks'];
+  $closest = "";  
+
+  if ($height != "" && $height >= $lotteryblock) {
+    $blockhash = $clnt->getblockhash($lotteryblock);
+    $ticketarray = array();
+
+    if ($blockhash != "") {
+      $stmt =  $conn->prepare("SELECT * FROM discord_lottery where lotteryblock = ?");
+      $stmt->bind_param("i", $lotteryblock);
+      $stmt->execute();
+      $result = $stmt->get_result();
+      $res = $result->fetch_assoc();
+      $err = $stmt->error;
+      $stmt->close();    
+      
+      if ($result->num_rows > 0) {  
+        while ($row = $result->fetch_assoc()) {
+          $ticket = $row['lotteryhash']."|".$row['userid']."|".$row['username'];
+          array_push($ticketarray,$ticket);      
+        }
+      }
+
+      
+      if (!empty($ticketarray)) {    
+
+        $input = $blockhash;
+
+        // no shortest distance found, yet
+        $shortest = -1;
+
+        // loop through words to find the closest
+        foreach ($ticketarray as $entrydata) {
+          $data = explode("|", $entrydata);
+          $entry = $data[0];
+          $userid = $data[1];
+          $username = $data[2];
+          // calculate the distance between the input word,
+          // and the current word
+          $lev = levenshtein($input, $entry);
+
+          // check for an exact match
+          if ($lev == 0) {
+
+            // closest word is this one (exact match)
+            //$closest = $entry;
+            $closest = $entrydata;
+            $shortest = 0;
+
+            // break out of the loop; we've found an exact match
+            break;
+          }
+
+          // if this distance is less than the next found shortest
+          // distance, OR if a next shortest word has not yet been found
+          if ($lev <= $shortest || $shortest < 0) {
+            // set the closest match, and shortest distance
+            //$closest  = $entry;
+            $closest = $entrydata;
+            $shortest = $lev;
+          }
+        }
+      }
+      else {
+           $closest = "no winner";
+      }
+    }
+  }
+  return $closest;
+}
+
+//==== actions
+
+if ($task == "getaddress") {
+  if ($userid != "" && $username != "") {
+    if (hasAddress($userid, $mysqli)) {
+      echo getAddress($userid, $mysqli);
+    }
+    else {
+      echo createAddress($userid, $username, $client, $mysqli);
+    }
+  }
+}
+
+elseif ($task == "getbalance") {
+  if ($userid != "" && $username != "") {
+    if (hasAddress($userid, $mysqli)) {
+      echo getBalance($userid, $mysqli);
+    }
+    else {
+      echo "no address";
+    }
+  }    
+}
+
+elseif ($task == "sendtip") {
+  if ($userid != "" && $username != "" && $recipientid != "" && $amount != "" && $recipientname != "") {
+    if (hasAddress($userid, $mysqli)) {
+      $tipperaddress = getAddress($userid, $mysqli);
+      if (!hasAddress($recipientid, $mysqli)) {
+        $recipientaddress = createAddress($recipientid, $recipientname, $client, $mysqli);
+      }
+      else {
+        $recipientaddress = getAddress($recipientid, $mysqli);
+      }
+      if ($tipperaddress != "" && $recipientaddress != "") {
+        $tipperbalance = getBalance($userid, $mysqli);
+        if ($tipperbalance != "") {
+          if ($tipperbalance >= ($amount)) {
+
+            if (deductFunds($userid, $amount, $mysqli)) {
+              if (addFunds($recipientid, $amount, $mysqli)) {
+                if (logTip($userid, $username, $recipientid, $recipientname, "Tip", $amount, $mysqli)) {
+                  echo "Success";
+                }
+                else {
+                  deductFunds($recipientid, $amount, $mysqli);
+                  addFunds($userid, $amount, $mysqli);
+                  echo "Error|Unable to send funds at this time";
+                }
+              }
+              else {
+                addFunds($userid, $amount, $mysqli);
+                echo "Error|Unable to send funds at this time";
+              }
+            }
+            else {
+              echo "Error|Unable to send funds at this time2";
+            }            
+          }
+          else {
+            echo "Error|Insufficient funds";
+          }
+        }
+        else {
+          echo "Error|Unable to get Tipper address";
+        }
+      }
+      else {
+        echo "Error|Unable to get Tipper address";
+      }
+    }
+    else {
+      echo "Error|Unable to get Tipper address";
+    }
+  }
+}
+
+elseif ($task == "withdraw") {
+  if ($userid != "" && $username != "" && $amount != "" && $wdaddress != "") {
+    if (hasAddress($userid, $mysqli)) {
+      $withdrawaddress = getAddress($userid, $mysqli);
+      if ($withdrawaddress != "") {
+        $balance = getBalance($userid, $mysqli);
+        if ($balance != "") {
+          $settxfee = $client->settxfee($txfee);
+          if ($amount == "all") {
+            $totalamount = $amount;
+            if ($balance > $txfee) {
+              $amount = $balance - $txfee;
+              $walletbalance = botBalance($client);
+              $gameaccountbalance = getBalance($gameuserid,$mysqli);
+	            $botbalance = $walletbalance - $gameaccountbalance; //ensure the game account balance is not used for withdrawal
+              $threshold = ($botbalance * 80) / 100; //should not be able to withdraw more than 80% of botbalance
+              if ($amount <= $threshold) {
+                $dosend = $client->sendtoaddress($wdaddress, $amount);
+                $pos = strpos($dosend, "error");
+                if ($pos === false) {
+                  $txhash = $dosend;
+                  deductFunds($userid, $totalamount, $mysqli);
+                  logWithdrawal($userid, $username, $withdrawaddress, $wdaddress, $totalamount, $txhash, $mysqli);
+                  echo "Success|$dosend";
+                }
+                else {
+                  $pos = strpos($dosend, "insufficient funds");
+                  if ($pos !== false) {
+                    echo "Error|insufficient funds";
+                  }
+                }
+              }
+              else {
+                echo "Error|bot balance threshold";
+              }
+            }
+            else {
+              echo "Error|dust";
+            }
+          }
+          else {
+            if ($balance >= ($amount + $txfee)) {
+              $totalamount = $amount;
+              $amount = $amount - $txfee;
+              $walletbalance = botBalance($client);
+              $gameaccountbalance = getBalance($gameuserid, $mysqli);
+              $botbalance = $walletbalance - $gameaccountbalance;
+              $threshold = ($botbalance * 80) / 100;
+              if ($amount <= $threshold) {
+                $dosend = $client->sendtoaddress($wdaddress, $amount);
+                $pos = strpos($dosend, "error");
+                if ($pos === false) {
+                  $txhash = $dosend;
+                  deductFunds($userid, $totalamount, $mysqli);
+                  logWithdrawal($userid, $username, $withdrawaddress, $wdaddress, $totalamount, $txhash, $mysqli);
+                  echo "Success|$dosend";
+                }
+                else {
+                  $pos = strpos($dosend, "insufficient funds");
+                  if ($pos !== false) {
+                    echo "Error|insufficient funds";
+                  }
+                }
+              }
+              else {
+                echo "Error|bot balance threshold";
+              }
+            }
+            else {
+              echo "Error|dust";
+            }
+          }
+        }
+        else {
+          echo "Error|Unable to get user balance";
+        }
+      }
+      else {
+        echo "Error|Unable to get user address";
+      }  
+    }
+    else {
+      echo "Error|User has no address";
+    }
+  } 
+}
+
+elseif ($task == "getbotbalance") {
+  echo getBalance($gameuserid, $mysqli);
+}
+
+elseif ($task == "games-lo") {
+  if ($userid != "" && $username != "" && $stake != "") { // required parameters are present
+    $gameaccountbalance = getBalance($gameuserid, $mysqli); //get current gameaccount balance
+    $maxbet = ($gameaccountbalance * 2.5) / 100;
+    if ($stake > $maxbet) { //only allow play if gamebot balance is at least twice the player's stake
+      echo "Error|Your bet is higher than the maximum bet allowed. Current maxbet allowed: **$maxbet AUDAX**.\nTry placing a lower bet.";
+    }
+    else {
+      if (hasAddress($userid, $mysqli)) {
+        $playeraddress = getAddress($userid, $mysqli); // player has address - get it
+        if ($playeraddress != "") { //if there is a response to above call
+          $playerbalance = getBalance($userid, $mysqli); // get player's balance
+          if ($playerbalance != "") { //if there is a response to above call
+            if ($playerbalance >= $stake) {
+              $currNumber = currentHiLo($hi_loMax, $mysqli); // get last random number
+              if ($currNumber == 1) {
+                $currNumber = mt_rand(1, $hi_loMax); //if last random number was 1, give user a chance to predict lower - generate new number
+              }
+              $throw = mt_rand(1, $hi_loMax); // throw dice, using $hi_loMax as upper limit
+              $updateNumber = updateHiLo($throw, $mysqli);
+             //if ($throw < $currNumber) { // thrown number is lower than last random number. Player wins as they picked 'lo'. ***ORIGINAL
+              if ($throw < $hi_loMedian) {
+                $winnings = $stake; 
+                addFunds($userid, $winnings, $mysqli); //credit user account
+
+                deductFunds($gameuserid, $winnings, $mysqli); //debit gameuseraccount
+ 
+                logTip("HiLo Game", "HiLo Game", $userid, $username, "HiLo Player Win", $winnings, $mysqli);
+                echo "win|$winnings|$throw|$currNumber";
+              }
+              else {
+                $loss = $stake;
+                deductFunds($userid, $loss, $mysqli); //debit user account
+
+                addFunds($gameuserid, $loss, $mysqli); // credit gameuser account
+
+                logTip($userid, $username, "HiLo Game", "HiLo Game", "HiLo Player Loss", $loss, $mysqli);                
+                echo "loss|$stake|$throw|$currNumber";            
+              }
+              $updateNumber = updateHiLo($throw, $mysqli);
+            }
+            else {
+              echo "Error|You have insufficient funds";
+            }
+          }
+          else { // call to get player's balance failed
+            echo "Error|We are unable to retrieve your balance at the moment. No funds have been deducted from your account";
+          }
+        }
+        else {
+          echo "Error|We are unable to retrieve your balance at the moment. No funds have been deducted from your account";
+        }
+      }
+      else {  // player has no address (and therefore no balance) - cannot play
+        echo "Error|You do not currently have an account - create one by running the !address command, and then deposit funds in the account";
+      }
+    }    
+  }
+  else {
+    echo "Error|Invalid command - correct syntax is !hi [stake]";
+  }
+}
+
+elseif ($task == "games-hi") {
+  if ($userid != "" && $username != "" && $stake != "") { // required parameters are present
+    $gameaccountbalance = getBalance($gameuserid, $mysqli); // check gamebot balance
+    $maxbet = ($gameaccountbalance * 2.5) / 100;
+    if ($stake > $maxbet) { //only allow play if gamebot balance is at least twice the player's stake
+      echo "Error|Your bet is higher than the maximum bet allowed. Current maxbet allowed: **$maxbet AUDAX**.\nTry placing a lower bet.";
+    }
+    else {
+      if (hasAddress($userid, $mysqli)) {
+        $playeraddress = getAddress($userid, $mysqli); // player has address - get it
+        if ($playeraddress != "") { //if there is a response to above call
+          $playerbalance = getBalance($userid, $mysqli); // get player's balance
+          if ($playerbalance != "") { //if there is a response to above call
+            if ($playerbalance >= $stake) {
+              $currNumber = currentHiLo($hi_loMax, $mysqli); // get last random number
+              if ($currNumber == $upperlimit) {
+                $currNumber = mt_rand(1, $hi_loMax); //if last random number was almost the max, give user a chance to predict lower - generate new number
+              }
+              $throw = mt_rand(1, $hi_loMax); // throw dice, using $hi_loMax as upper limit
+              $updateNumber = updateHiLo($throw, $mysqli);
+              //if ($throw > $currNumber) { // thrown number is higher than last random number. Player wins as they picked 'hi'. ***ORIGINAL
+              if ($throw > $hi_loMedian) {
+                $winnings = $stake; 
+                addFunds($userid, $winnings, $mysqli); //credit user account 
+
+                deductFunds($gameuserid, $winnings, $mysqli); //debit gameuser account
+
+                logTip("HiLo Game", "HiLo Game", $userid, $username, "HiLo Player Win", $winnings, $mysqli);
+                echo "win|$winnings|$throw|$currNumber";
+              }
+              else {
+                $loss = $stake;
+                deductFunds($userid, $loss, $mysqli); //debit user account
+
+                addFunds($gameuserid, $loss, $mysqli); //credit gameuser account
+
+                logTip($userid, $username, "HiLo Game", "HiLo Game", "HiLo Player Loss", $loss, $mysqli);                
+                echo "loss|$stake|$throw|$currNumber";            
+              }
+              $updateNumber = updateHiLo($throw, $mysqli);
+            }
+            else {
+              echo "Error|You have insufficient funds";
+            }
+          }
+          else { // call to get player's balance failed
+            echo "Error|We are unable to retrieve your balance at the moment. No funds have been deducted from your account";
+          }
+        }
+        else {
+          echo "Error|We are unable to retrieve your balance at the moment. No funds have been deducted from your account";
+        }
+      }
+      else {  // player has no address (and therefore no balance) - cannot play
+        echo "Error|You do not currently have an account - create one by running the !address command, and then deposit funds in the account";
+      }
+    }    
+  }
+  else {
+    echo "Error|Invalid command - correct syntax is !hi [stake]";
+  }
+}
+
+elseif ($task == "lotteryticket") {
+  if ($userid != "" && $username != "") {
+    $lotteryblock = getnextlotteryblock($mysqli);
+    if (hasAddress($userid, $mysqli)) {
+      $balance = getBalance($userid, $mysqli);
+      if ($balance != "") {        
+        $settxfee = $client->settxfee($txfee);
+        if ($balance >= ($lotteryticketamt + $txfee)) {
+          $totalamount = $lotteryticketamt + $txfee;
+          $dosend = $client->sendtoaddress($lotteryaddress, $lotteryticketamt);
+          $pos = strpos($dosend, "error");
+          if ($pos === false) {
+            $txhash = $dosend;
+            deductFunds($userid, $totalamount, $mysqli);
+            //logTip($userid, $username, "Lotteryuser", "Lotteryuser", "Lottery Ticket", $lotteryticketamt, $mysqli);
+            logLotteryEntry($userid, $username, $txhash, $lotteryticketamt, $lotteryblock, $mysqli);
+            echo "Success|$dosend|$lotteryblock";
+          }
+          else {
+            $pos = strpos($dosend, "insufficient funds");
+            if ($pos !== false) {
+              echo "Error|insufficient funds";
+            }
+            else {
+              echo "Error|unable to purchase lottery ticket";
+            }
+          }          
+        }
+        else {
+          echo "Error|insufficient funds";
+        }        
+      }
+      else {
+        echo "Error|Unable to get user balance";
+      }      
+    }
+    else {
+      echo "Error|User has no address";
+    }
+  } 
+}
+
+elseif ($task == "getjackpot") {
+  $lotteryblock = getNextlotteryblock($mysqli);
+  $getjackpot = getJackpot($lotteryblock,$mysqli);
+  if ($getjackpot == "") {
+    $getjackpot = 0;
+  }
+  echo "$getjackpot|$lotteryblock";
+}
+
+elseif ($task == "getlotterywinner") {
+  $lotteryblock = getNextlotteryblock($mysqli);
+  $getlotterywinner = getlotterywinner($lotteryblock, $client, $mysqli);
+  if ($getlotterywinner != "") {
+    $winningdata = explode("|",$getlotterywinner);
+    $winninghash = $winningdata[0];
+    $winninguserid = $winningdata[1];
+    $winningusername = $winningdata[2];
+    $jackpot = getJackpot($lotteryblock,$mysqli);
+    addFunds($winninguserid, $jackpot, $mysqli); //credit user account
+    logTip("Lottery", "Lottery", $winninguserid, $winningusername, "Lottery win for Block $lotteryblock", $jackpot, $mysqli); //log
+    $nextlotteryblock = $lotteryblock + $lotteryinterval;
+    updateNextlotteryblock($nextlotteryblock, $mysqli);
+    echo "winner|$winninghash|$winninguserid|$winningusername|$lotteryblock|$jackpot";
+  }
+  else {
+    // notify admin?
+  }
+  //$nextlotteryblock = $lotteryblock + $lotteryinterval;
+  //updateNextlotteryblock($nextlotteryblock, $mysqli);
+}
+
+
+elseif ($task == "tiprank") { 
+  if ($userid != "" && $username != "" && $usersarray != "" && $amount != "") {    
+    if (hasAddress($userid, $mysqli)) {
+      $tipperaddress = getAddress($userid, $mysqli);
+      $targetaddresses = array();
+      $recipients = explode(",",$usersarray);
+      if (!empty($tipperaddress)) {
+        $numrecipients = count($recipients);
+        $eachamount = $amount / $numrecipients;
+        $tipperbalance = getBalance($userid, $mysqli);
+        if ($tipperbalance != "" && $tipperbalance >= $amount) {
+          $successful = 0;
+          $successfularray = array();
+          foreach ($recipients as $recipient) {
+            $recipientinfo = explode("|",$recipient);
+            $recipientid = $recipientinfo[0];
+            $recipientname = $recipientinfo[1];
+            if (!hasAddress($recipientid, $mysqli)) {
+              $recipientaddress = createAddress($recipientid, $recipientname, $client, $mysqli);
+            }
+            else {
+              $recipientaddress = getAddress($recipientid, $mysqli);
+            }
+            
+            if (deductFunds($userid, $eachamount, $mysqli)) {
+              if (addFunds($recipientid, $eachamount, $mysqli)) {
+                if (logTip($userid, $username, $recipientid, $recipientname, "Tip", $eachamount, $mysqli)) {
+                  array_push($successfularray,$recipientid);
+                  $successful++;
+                }
+                else {
+                  deductFunds($recipientid, $eachamount, $mysqli);
+                  addFunds($userid, $eachamount, $mysqli);
+                  echo "$recipientname Error|Unable to send funds at this time";
+                }
+              }
+              else {
+                addFunds($userid, $eachamount, $mysqli);
+                echo "$recipientname Error|Unable to send funds at this time";
+              }
+            }
+            else {
+              echo "$recipientname Error|Unable to send funds at this time2";
+            }          
+          }
+          if ($successful == $numrecipients) {
+            $successfularray = implode("--",$successfularray);
+            echo "Success|$successfularray|$eachamount";
+          }
+          else {
+            echo "Error|Failed";
+          }          
+        }
+        else {
+          echo "Error|Insufficient funds";
+        }
+      }
+      else {
+        echo "Error|Unable to get Tipper address";
+      }
+    }
+    else {
+      echo "Error|Unable to get Tipper address";
+    }
+  }
+}
+
+elseif ($task == "rain") { 
+  if ($userid != "" && $username != "" && $usersarray != "" && $amount != "") {    
+    if (hasAddress($userid, $mysqli)) {
+      $tipperaddress = getAddress($userid, $mysqli);
+      $targetaddresses = array();
+      $recipients = explode(",",$usersarray);
+      if (!empty($tipperaddress)) {
+        $numrecipients = count($recipients);
+        $eachamount = $amount / $numrecipients;
+        $tipperbalance = getBalance($userid, $mysqli);
+        if ($tipperbalance != "" && $tipperbalance >= $amount) {
+          $successful = 0;
+          $successfularray = array();
+          foreach ($recipients as $recipient) {
+            $recipientinfo = explode("|",$recipient);
+            $recipientid = $recipientinfo[0];
+            $recipientname = $recipientinfo[1];
+            if (!hasAddress($recipientid, $mysqli)) {
+              $recipientaddress = createAddress($recipientid, $recipientname, $client, $mysqli);
+            }
+            else {
+              $recipientaddress = getAddress($recipientid, $mysqli);
+            }
+            
+            if (deductFunds($userid, $eachamount, $mysqli)) {
+              if (addFunds($recipientid, $eachamount, $mysqli)) {
+                if (logTip($userid, $username, $recipientid, $recipientname, "Tip", $eachamount, $mysqli)) {
+                  array_push($successfularray,$recipientid);
+                  $successful++;
+                }
+                else {
+                  deductFunds($recipientid, $eachamount, $mysqli);
+                  addFunds($userid, $eachamount, $mysqli);
+                  echo "$recipientname Error|Unable to send funds at this time";
+                }
+              }
+              else {
+                addFunds($userid, $eachamount, $mysqli);
+                echo "$recipientname Error|Unable to send funds at this time";
+              }
+            }
+            else {
+              echo "$recipientname Error|Unable to send funds at this time2";
+            }          
+          }
+          if ($successful == $numrecipients) {
+            $successfularray = implode("--",$successfularray);
+            echo "Success|$successfularray|$eachamount";
+          }
+          else {
+            echo "Error|Failed";
+          }          
+        }
+        else {
+          echo "Error|Insufficient funds";
+        }
+      }
+      else {
+        echo "Error|Unable to get Tipper address";
+      }
+    }
+    else {
+      echo "Error|Unable to get Tipper address";
+    }
+  }
+}
+
+?>
